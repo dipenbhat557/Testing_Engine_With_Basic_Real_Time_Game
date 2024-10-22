@@ -1,93 +1,171 @@
-import { exec } from 'child_process';
-import { createClient } from 'redis';
-import { promisify } from 'util';
-import { PrismaClient } from '@prisma/client'
+import { exec } from "child_process";
+import { createClient } from "redis";
+import { PrismaClient } from "@prisma/client";
+import path from "path";
 
 const redis = createClient();
-const publisher = createClient()
-const QUEUE_NAME = 'requestQueue';
-// const execPromise = promisify(exec);
-const prisma = new PrismaClient()
+const publisher = createClient();
+const QUEUE_NAME = "requestQueueTesting";
+const prisma = new PrismaClient();
 
 interface Task {
   id: string;
   username: string;
-  httpUrl: string;
-  wsUrl: string;
+  testId: string;
+  envs: Record<string, string>;
 }
-async function processTask(payload: string) {
-  const jestTestFile = `./test/index.test.js`;
 
-  let task;
-  try {
-    task = JSON.parse(payload);
-    console.log("task is ", JSON.parse(task));
-    task = JSON.parse(task)
-    console.log("HTTP URL is ", task["httpUrl"],Object.keys(task));
-  } catch (error) {
-    console.error("Error parsing payload:", error);
-    return; 
+function convertToStringMap(obj: any): { [key: string]: string } {
+  const result: { [key: string]: string } = {};
+
+  for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+          const value = obj[key];
+          if (typeof value === 'object' && value !== null) {
+              Object.assign(result, convertToStringMap(value));
+          } else {
+              result[key] = String(value);
+          }
+      }
   }
 
-  const command = `npx jest ${jestTestFile}`;
+  return result;
+}
+
+function parseTestTimes(output: string): Array<{ name: string, time: number }> {
+  const testTimes: Array<{ name: string, time: number }> = [];
+  const regex = /√ (.+?) \((\d+) ms\)/g; 
+  let match;
+
+  while ((match = regex.exec(output)) !== null) {
+    const testName = match[1];
+    const time = parseInt(match[2], 10);
+    testTimes.push({ name: testName, time });
+  }
+
+  return testTimes;
+}
+
+function parseFailedTests(output: string): string[] {
+  const failedTests: string[] = [];
+  const regex = /× (.+?) \((\d+) ms\)/g;  
+  let match;
+  // console.log("Inside parseFailedTests with output: ", output);
+
+  while ((match = regex.exec(output)) !== null) {
+    // console.log("Failed test match found:", match);
+    const testName = match[1];
+    failedTests.push(testName);
+  }
+
+  return failedTests;
+}
+
+
+async function processTask(payload: string) {
+  console.log("inside this")
+  let task: Task;
+  try {
+    task = JSON.parse(payload);
+  } catch (error) {
+    console.error("Error parsing payload:", error);
+    return;
+  }
 
   try {
-    // const { stdout, stderr } = await execPromise(command);
-    let stdout1 , stderr1
-
-    exec(command, {env:{'HTTP_URL':task.httpUrl, 'WS_URL':task.wsUrl}}, (error, stdout, stderr) =>{
-      stdout1 = stdout
-      stderr1 = stderr
-    })
-
-    await new Promise(r=>{
-      setTimeout(r,150000)
-    })
-
-    if (stderr1) {
-      console.error(`Error: ${stderr1}`);
-    }
-
-    const success = !stderr1;
-
-    await prisma.testResult.create({
-      data: {
-        id: task.id,
-        username: task.username,
-        httpUrl: task.httpUrl,
-        wsUrl: task.wsUrl,
-        success: success,
-      },
+    const testRecord = await prisma.test.findUnique({
+      where: { id: task.testId },
     });
 
+    if (!testRecord) {
+      throw new Error(`Test with ID ${task.testId} not found.`);
+    }
+
+    let testFilePath = testRecord.testFileUrl;
+    testFilePath = "./test/" + path.basename(testFilePath);
+    const requiredEnvs = testRecord.envs;
+
+    const providedEnvs = convertToStringMap(task.envs);
+
+    for (let env in requiredEnvs) {
+      if (!(env in Object.keys(providedEnvs))) {
+        throw new Error(`Missing required environment variable: ${env}`);
+      }
+    }
+
+    const command = `npx jest ${testFilePath}`;
+
+    let stdout1, stderr1;
+
+    exec(command, { env: providedEnvs }, async (_, stderr, stdout) => {
+      stdout1 = stdout;
+      stderr1 = stderr;
+      console.log("output is ", stdout);
+      console.log("error is ", stderr);
+
+      const success = !stdout.includes("FAIL");
+      const testTimes = parseTestTimes(stdout);
+      const failedTests = parseFailedTests(stdout);
+
+      console.log("Individual test times:", testTimes);
+      console.log("Failed test cases:", failedTests);
+
+      await prisma.testResult.update({
+        where: { id: task.id },
+        data: {
+          success: success,
+          timeTaken: JSON.stringify(testTimes),  
+          // failedTests: failedTests.length > 0 ? JSON.stringify(failedTests) : null, 
+        },
+      });
+
+      const result = {
+        error: false,
+        msg: {
+          id: task.id,
+          username: task.username,
+          success: success,
+          testTimes: testTimes,
+          failedTests: failedTests,
+        },
+      };
+
+      await publisher.publish(`response.${task.id}`, JSON.stringify(result));
+    });
+  } catch (error: any) {
+    console.error("Error executing test:", error);
+
     const result = {
-      error: false,
+      error: true,
       msg: {
         id: task.id,
         username: task.username,
-        output: stdout1,
-        success: success,
+        output: error.message,
+        success: false,
       },
     };
 
-    console.log("Task result:", result);
-
     await publisher.publish(`response.${task.id}`, JSON.stringify(result));
-
-  } catch (error) {
-    console.error("Error executing Jest:", error);
   }
 }
 
 async function worker() {
-    const result = await redis.brPop(QUEUE_NAME, 0); 
-    console.log("the result is ",result)
-    const task = result?.element
-    console.log('Processing task:', task);
-    await processTask(JSON.stringify(task));
-    worker()
+  const result = await redis.brPop(QUEUE_NAME, 0);
+  const task = result?.element;
+
+  if (task) {
+    console.log("Processing task:", task);
+    await processTask(task);
+  }
+
+  worker();
 }
 
-redis.connect()
-publisher.connect()
-worker()
+async function startServer() {
+  await redis.connect();
+  await publisher.connect();
+  console.log("successfully connected to redis");
+  worker();
+}
+
+startServer();
