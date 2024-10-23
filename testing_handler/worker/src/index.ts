@@ -54,16 +54,47 @@ function parseFailedTests(output: string): string[] {
 
   while ((match = regex.exec(output)) !== null) {
     // console.log("Failed test match found:", match);
-    const testName = match[1];
-    failedTests.push(testName);
+    const testName = match[1] || match[3];
+    if (testName) {
+      failedTests.push(testName);
+    }
   }
 
   return failedTests;
 }
 
+function parseSuiteStats(output: string) {
+  const totalSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*total/);
+  const failedSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*failed/);
+  const totalTestsMatch = output.match(/Tests:\s*(\d+)\s*total/);
+  const failedTestsMatch = output.match(/Tests:\s*(\d+)\s*failed/);
+  const timeMatch = output.match(/Time:\s*([\d.]+)\s*s/); 
+
+  const totalSuites = totalSuitesMatch ? parseInt(totalSuitesMatch[1], 10) : 0;
+  console.log("total test suite is ",totalSuitesMatch)
+  console.log("total test suites match is ",totalSuites)
+  console.log("failed test suite is ",failedSuitesMatch)
+  const failedSuites = failedSuitesMatch ? parseInt(failedSuitesMatch[1], 10) : 0;
+  const totalTests = totalTestsMatch ? parseInt(totalTestsMatch[1], 10) : 0;
+  const failedTests = failedTestsMatch ? parseInt(failedTestsMatch[1], 10) : 0;
+  const timeTaken = timeMatch ? parseFloat(timeMatch[1]) : 0.0; 
+
+  const passedSuites = totalSuites - failedSuites;
+  const passedTests = totalTests - failedTests;
+
+  return {
+    totalSuites,
+    failedSuites,
+    passedSuites,
+    totalTests,
+    failedTests,
+    passedTests,
+    timeTaken
+  };
+}
 
 async function processTask(payload: string) {
-  console.log("inside this")
+  // console.log("inside this")
   let task: Task;
   try {
     task = JSON.parse(payload);
@@ -95,20 +126,18 @@ async function processTask(payload: string) {
 
     const command = `npx jest ${testFilePath}`;
 
-    let stdout1, stderr1;
-
     exec(command, { env: providedEnvs }, async (_, stderr, stdout) => {
-      stdout1 = stdout;
-      stderr1 = stderr;
       console.log("output is ", stdout);
       console.log("error is ", stderr);
 
       const success = !stdout.includes("FAIL");
       const testTimes = parseTestTimes(stdout);
       const failedTests = parseFailedTests(stdout);
+      const suiteStats = parseSuiteStats(stdout);
 
       console.log("Individual test times:", testTimes);
       console.log("Failed test cases:", failedTests);
+      console.log("Suite statistics:", suiteStats);
 
       await prisma.testResult.update({
         where: { id: task.id },
@@ -127,6 +156,7 @@ async function processTask(payload: string) {
           success: success,
           testTimes: testTimes,
           failedTests: failedTests,
+          suiteStats: suiteStats
         },
       };
 
