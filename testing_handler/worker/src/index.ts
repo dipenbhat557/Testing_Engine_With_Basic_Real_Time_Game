@@ -64,20 +64,17 @@ function parseFailedTests(output: string): string[] {
 }
 
 function parseSuiteStats(output: string) {
-  const totalSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*total/);
-  const failedSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*failed/);
-  const totalTestsMatch = output.match(/Tests:\s*(\d+)\s*total/);
-  const failedTestsMatch = output.match(/Tests:\s*(\d+)\s*failed/);
+  const suitesMatch = output.match(/Test Suites:\s*(\d+)\s*failed,\s*(\d+)\s*total/);
+  const testsMatch = output.match(/Tests:\s*(\d+)\s*failed,\s*(\d+)\s*total/);
   const timeMatch = output.match(/Time:\s*([\d.]+)\s*s/); 
 
-  const totalSuites = totalSuitesMatch ? parseInt(totalSuitesMatch[1], 10) : 0;
-  console.log("total test suite is ",totalSuitesMatch)
-  console.log("total test suites match is ",totalSuites)
-  console.log("failed test suite is ",failedSuitesMatch)
-  const failedSuites = failedSuitesMatch ? parseInt(failedSuitesMatch[1], 10) : 0;
-  const totalTests = totalTestsMatch ? parseInt(totalTestsMatch[1], 10) : 0;
-  const failedTests = failedTestsMatch ? parseInt(failedTestsMatch[1], 10) : 0;
-  const timeTaken = timeMatch ? parseFloat(timeMatch[1]) : 0.0; 
+  const failedSuites = suitesMatch ? parseInt(suitesMatch[1], 10) : 0;
+  const totalSuites = suitesMatch ? parseInt(suitesMatch[2], 10) : 0;
+
+  const failedTests = testsMatch ? parseInt(testsMatch[1], 10) : 0;
+  const totalTests = testsMatch ? parseInt(testsMatch[2], 10) : 0;
+
+  const timeTakenInSec = timeMatch ? parseFloat(timeMatch[1]) : 0.0; 
 
   const passedSuites = totalSuites - failedSuites;
   const passedTests = totalTests - failedTests;
@@ -89,9 +86,10 @@ function parseSuiteStats(output: string) {
     totalTests,
     failedTests,
     passedTests,
-    timeTaken
+    timeTakenInSec
   };
 }
+
 
 async function processTask(payload: string) {
   // console.log("inside this")
