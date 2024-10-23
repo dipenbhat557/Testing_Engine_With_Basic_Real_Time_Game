@@ -44,7 +44,7 @@ describe("Trading System Tests", () => {
     const balanceResponse = await axios.get(
       `${HTTP_SERVER_URL}/balance/inr/${userId}`
     );
-    expect(balanceResponse.data.msg).toEqual({ balance: 100000, locked: 0 });
+    expect(balanceResponse.data.msg).toEqual({ balance: 1000000, locked: 5 });
   });
 
   test("Create symbol and check orderbook", async () => {

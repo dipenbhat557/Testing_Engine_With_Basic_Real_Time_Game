@@ -64,20 +64,22 @@ function parseFailedTests(output: string): string[] {
 }
 
 function parseSuiteStats(output: string) {
-  const suitesMatch = output.match(/Test Suites:\s*(\d+)\s*failed,\s*(\d+)\s*total/);
+
+  // const totalSuitesMatch = output.match(/Test Suites:\s*\d+\s*(failed|passed),\s*(\d+)\s*total/);
+  const failedSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*failed/);
+  const passedSuitesMatch = output.match(/Test Suites:\s*(\d+)\s*passed/);
+
+  const failedSuites = failedSuitesMatch ? parseInt(failedSuitesMatch[1], 10) : 0;
+  // const totalSuites = totalSuitesMatch ? parseInt(totalSuitesMatch[1], 10) : 0;
+  const passedSuites = passedSuitesMatch ? parseInt(passedSuitesMatch[1], 10) : 0;
+  const totalSuites = failedSuites + passedSuites
+
   const testsMatch = output.match(/Tests:\s*(\d+)\s*failed,\s*(\d+)\s*total/);
-  const timeMatch = output.match(/Time:\s*([\d.]+)\s*s/); 
-
-  const failedSuites = suitesMatch ? parseInt(suitesMatch[1], 10) : 0;
-  const totalSuites = suitesMatch ? parseInt(suitesMatch[2], 10) : 0;
-
   const failedTests = testsMatch ? parseInt(testsMatch[1], 10) : 0;
   const totalTests = testsMatch ? parseInt(testsMatch[2], 10) : 0;
 
-  const timeTakenInSec = timeMatch ? parseFloat(timeMatch[1]) : 0.0; 
-
-  const passedSuites = totalSuites - failedSuites;
-  const passedTests = totalTests - failedTests;
+  const timeMatch = output.match(/Time:\s*([\d.]+)\s*s/);
+  const timeTakenInSec = timeMatch ? parseFloat(timeMatch[1]) : 0.0;
 
   return {
     totalSuites,
@@ -85,11 +87,10 @@ function parseSuiteStats(output: string) {
     passedSuites,
     totalTests,
     failedTests,
-    passedTests,
-    timeTakenInSec
+    passedTests: totalTests - failedTests,
+    timeTakenInSec,
   };
 }
-
 
 async function processTask(payload: string) {
   // console.log("inside this")
@@ -132,6 +133,12 @@ async function processTask(payload: string) {
       const testTimes = parseTestTimes(stdout);
       const failedTests = parseFailedTests(stdout);
       const suiteStats = parseSuiteStats(stdout);
+
+      if(failedTests.length !== 0 || success ){
+        suiteStats.failedTests = failedTests.length
+        suiteStats.totalTests = failedTests.length + testTimes.length
+        suiteStats.passedTests = testTimes.length
+      }
 
       console.log("Individual test times:", testTimes);
       console.log("Failed test cases:", failedTests);

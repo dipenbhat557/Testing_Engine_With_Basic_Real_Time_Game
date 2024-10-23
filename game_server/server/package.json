@@ -12,7 +12,8 @@
   "dependencies": {
     "@types/multer": "^1.4.12",
     "express": "^4.21.1",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "server": "file:"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
