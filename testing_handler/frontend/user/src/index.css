@@ -8,9 +8,7 @@
 
 }
 
-body{
-    overflow-y: hidden;
-}
+
 
 @layer utilities {
     .no-scrollbar::-webkit-scrollbar {

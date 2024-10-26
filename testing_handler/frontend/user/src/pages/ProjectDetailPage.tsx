@@ -5,11 +5,18 @@ import OutputConsole from '../components/OutputConsole';
 import { IoIosArrowBack } from 'react-icons/io';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FaPlay } from 'react-icons/fa';
+import { NotionRenderer } from 'react-notion-x';
+import 'react-notion-x/src/styles.css';
+import 'prismjs/themes/prism-tomorrow.css';
+import 'katex/dist/katex.min.css';
 
 interface Project {
   id: string;
   username: string;
   testFileUrl: string;
+  thumbnailUrl: string;
+  notionLink: string;
+  title: string;
   envs: string[];
   createdAt: string;
 }
@@ -17,21 +24,22 @@ interface Project {
 const ProjectDetailPage: React.FC = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
-
+  const [recordMap, setRecordMap] = useState<any | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [output, setOutput] = useState<string>('No output yet...');
-  const [envs, setEnvs] = useState<{ [key: string]: string }>({}); 
+  const [envs, setEnvs] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const fetchProject = async () => {
+      if (!projectId) return;
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/tests/${projectId}`);
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) throw new Error('Failed to fetch project details');
         const data = await response.json();
-        
         setProject(data);
+
         const envsObj = data.envs.reduce((acc: { [key: string]: string }, env: string) => {
-          acc[env] = ''; 
+          acc[env] = '';
           return acc;
         }, {});
         setEnvs(envsObj);
@@ -40,37 +48,47 @@ const ProjectDetailPage: React.FC = () => {
       }
     };
 
-    if (projectId) fetchProject();
+    fetchProject();
   }, [projectId]);
+
+  useEffect(() => {
+    const fetchNotionPage = async () => {
+      if (!project?.notionLink) return;
+
+      const notionId = project.notionLink.split('-').pop();
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/notion-page/${notionId}`);
+        // const response = await fetch("http://localhost:3000/notion-page/1288b46161dc801ebb18d463133c4bb9")
+        if (!response.ok) throw new Error('Failed to fetch Notion page');
+        const data = await response.json();
+        setRecordMap(data);
+      } catch (error) {
+        console.error('Failed to fetch Notion page:', error);
+      }
+    };
+
+    fetchNotionPage();
+  }, [project?.notionLink]);
 
   const handleRunTest = async () => {
     if (!project) return;
-
     setOutput('Running test...');
 
     const payload = {
       username: project.username,
       testId: project.id,
-      envs: envs, 
+      envs,
     };
 
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/test/submit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       const result = await response.json();
-      console.log("response is ",result)
 
-      if (response.ok) {
-        setOutput(JSON.stringify(result));
-      } else {
-        setOutput(`Error: ${result.error || 'Failed to submit test'}`);
-      }
+      setOutput(response.ok ? JSON.stringify(result) : `Error: ${result.error || 'Failed to submit test'}`);
     } catch (error) {
       console.error('Error submitting test:', error);
       setOutput('Error submitting test');
@@ -78,7 +96,7 @@ const ProjectDetailPage: React.FC = () => {
   };
 
   return (
-    <div className='h-screen'>
+    <div className='h-screen overflow-y-hidden'>
       <div className='w-full h-[7%] flex items-center justify-center'>
         <button
           className='font-semibold bg-slate-500 px-4 py-1 bg-opacity-40 text-white rounded-lg gap-1 left-[4%] absolute flex items-center'
@@ -108,11 +126,13 @@ const ProjectDetailPage: React.FC = () => {
           cursor="col-resize"
         >
           <div className="p-4 overflow-y-auto border-r h-full">
-            <iframe
-              src={""} 
-              className="w-full h-full"
-              title="Test Description"
-            />
+            {recordMap ? (
+              <div className="w-full h-full overflow-auto">
+                <NotionRenderer recordMap={recordMap} fullPage={true} darkMode={false} />
+              </div>
+            ) : (
+              <p>Loading Notion content...</p>
+            )}
           </div>
 
           <div className="flex-1 flex flex-col h-full">
@@ -126,7 +146,7 @@ const ProjectDetailPage: React.FC = () => {
               snapOffset={30}  
             >
               <div className="p-4 border-b h-full">
-                {project && <EnvInputFields envs={envs} setEnvs={setEnvs} />} 
+                {project && <EnvInputFields envs={envs} setEnvs={setEnvs} />}
               </div>
 
               <div className="p-4 h-full">

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import Hero from '../components/Hero';
+import ProjectList from '../components/ProjectList';
+import { hero, logo } from '../assets';
+import Navbar from '../components/Navbar';
+import ContestCards from '../components/ContestCards';
+import ContestList from '../components/ContestList';
+import Slider from '../components/Slider';
+import { FaAngleLeft, FaAngleRight } from 'react-icons/fa';
 
-interface Project {
+export interface Project {
   id: string;
   username: string;
   testFileUrl: string;
@@ -30,6 +38,7 @@ const ProjectListPage = () => {
   };
 
   useEffect(() => {
+    console.log("url from list is ",import.meta.env.VITE_API_URL)
     fetchProjects(currentPage);
   }, [currentPage]);
 
@@ -41,28 +50,46 @@ const ProjectListPage = () => {
     setCurrentPage(page);
   };
 
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Projects</h1>
-      <div className="grid grid-cols-1 gap-4">
-        {projects.map(project => (
-          <div
-            key={project.id}
-            className="p-4 border rounded-lg shadow-md cursor-pointer"
-            onClick={() => handleProjectClick(project.id)}
-          >
-            <h2 className="text-xl">{`Test by ${project.username}`}</h2>
-            <p className="text-gray-600">{`Test File: ${project.testFileUrl}`}</p>
-            <p className="text-gray-600">{`Environments: ${project.envs.join(', ')}`}</p> 
-          </div>
-        ))}
-      </div>
+  const contests = [
+    {
+      id: 1,
+      title: "Probo Clone",
+      timeLeft: "2 Days - 12 hr - 60 mins",
+      img: hero,
+    },
+    {
+      id: 2,
+      title: "Quiz App",
+      timeLeft: "1 Day - 5 hr - 30 mins",
+      img: logo,
+    },
+  ];
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+  // return (
+  //   <div >
+  //     <Hero/>
+  //     <ProjectList projects={projects} totalPages={totalPages} currentPage={currentPage} handleProjectClick={handleProjectClick} handlePageChange={handlePageChange}  />
+
+
+  return (
+    <div>
+      <Navbar />
+      <Hero />
+      <div className="w-[70%] h-auto mx-auto flex justify-around items-center">
+        <FaAngleLeft className='text-3xl bg-transparent'/>
+        {contests.map((contest) => (
+          <ContestCards
+            key={contest.id}
+            title={contest.title}
+            timeLeft={contest.timeLeft}
+            img={contest.img}
+          />
+        ))}
+        <FaAngleRight className='text-3xl bg-transparent'/>
+      </div>
+      <div className=" flex justify-between gap-9  mt-3 w-[90%] mx-auto">
+        <ContestList />
+      </div>
     </div>
   );
 };

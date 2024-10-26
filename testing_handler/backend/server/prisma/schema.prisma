@@ -17,6 +17,9 @@ model Test {
   id           String @id @default(uuid())
   username     String
   testFileUrl  String
+  thumbnailUrl String? 
+  notionLink   String? 
+  title        String?
   envs         String[]
   createdAt    DateTime @default(now())
 }
