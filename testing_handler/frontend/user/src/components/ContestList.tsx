@@ -1,4 +1,5 @@
 import { hero } from "../assets";
+import Pagination from "./Pagination";
 
 export default function ContestList() {
   const contests = [
@@ -31,31 +32,40 @@ export default function ContestList() {
       type: "Expert",
     },
   ];
+
   return (
-    <div className="bg-[#1A1A1A] w-[60%] mx-auto p-7 cursor-pointer rounded-xl h-screen">
-      <h2 className="bg-[#282828] text-white text-center w-24 p-1 rounded ">
-        On-Going
-      </h2>
-      {contests.map((e) => (
-        <div key={e.id} className="flex justify-between mt-5">
-          <div className=" overflow-hidden">
-            <img
-              className="w-[250px] h-36 rounded-xl"
-              src={e.img}
-              alt="Image"
-            />
-          </div>
-          <div className="text-white mt-10">
-            <h1>{e.title}</h1>
-            <p>{e.timeLeft}</p>
-          </div>
-          <div>
-            <h2 className="bg-[#282828]  mt-10 text-white text-center w-28 p-1 rounded ">
-              {e.type}
-            </h2>
-          </div>
-        </div>
-      ))}
+    <div className="w-[80%] mx-auto p-7 rounded-xl h-auto">
+      <table className="w-full text-left border-separate border-spacing-y-4">
+        <thead>
+          <tr>
+            <th className="text-white px-4 py-2">Image</th>
+            <th className="text-white px-4 py-2">Title</th>
+            <th className="text-white px-4 py-2">Time Left</th>
+            <th className="text-white px-4 py-2">Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contests.map((contest) => (
+            <tr key={contest.id} className="bg-[#282828] rounded-xl">
+              <td className="px-4 py-2">
+                <img
+                  src={contest.img}
+                  alt={contest.title}
+                  className="w-[120px] h-[80px] object-cover rounded-lg"
+                />
+              </td>
+              <td className="text-white px-4 py-2">{contest.title}</td>
+              <td className="text-white px-4 py-2">{contest.timeLeft}</td>
+              <td className="px-4 py-2">
+                <span className="bg-[#444] text-white py-1 px-3 rounded-lg">
+                  {contest.type}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Pagination currentPage={1} totalPages={2} onPageChange={()=>console.log("page changed")}/>
     </div>
   );
 }

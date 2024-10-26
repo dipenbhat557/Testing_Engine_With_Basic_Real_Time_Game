@@ -1,7 +1,6 @@
 export default function ContestCards({ title, timeLeft, img }:{title:any, timeLeft:any, img:any}) {
     return (
-      <>
-        <div className=" w-[40%] h-[400px] mt-[-200px] z-40 rounded-3xl overflow-hidden cursor-pointer">
+        <div className=" w-[45%] h-full bg-slate-400  rounded-3xl overflow-hidden cursor-pointer">
           <div className="w-full h-[70%]">
             <img src={img} alt="" className="w-full h-full object-cover" />
           </div>
@@ -11,6 +10,5 @@ export default function ContestCards({ title, timeLeft, img }:{title:any, timeLe
             <button></button>
           </div>
         </div>
-      </>
     );
   }

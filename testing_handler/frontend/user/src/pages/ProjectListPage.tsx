@@ -9,6 +9,7 @@ import ContestCards from '../components/ContestCards';
 import ContestList from '../components/ContestList';
 import Slider from '../components/Slider';
 import { FaAngleLeft, FaAngleRight } from 'react-icons/fa';
+import Footer from '../components/Footer';
 
 export interface Project {
   id: string;
@@ -50,20 +51,7 @@ const ProjectListPage = () => {
     setCurrentPage(page);
   };
 
-  const contests = [
-    {
-      id: 1,
-      title: "Probo Clone",
-      timeLeft: "2 Days - 12 hr - 60 mins",
-      img: hero,
-    },
-    {
-      id: 2,
-      title: "Quiz App",
-      timeLeft: "1 Day - 5 hr - 30 mins",
-      img: logo,
-    },
-  ];
+
 
   // return (
   //   <div >
@@ -72,24 +60,15 @@ const ProjectListPage = () => {
 
 
   return (
-    <div>
+    <div >
       <Navbar />
       <Hero />
-      <div className="w-[70%] h-auto mx-auto flex justify-around items-center">
-        <FaAngleLeft className='text-3xl bg-transparent'/>
-        {contests.map((contest) => (
-          <ContestCards
-            key={contest.id}
-            title={contest.title}
-            timeLeft={contest.timeLeft}
-            img={contest.img}
-          />
-        ))}
-        <FaAngleRight className='text-3xl bg-transparent'/>
-      </div>
+      <div className='h-[200px]'/>
+      
       <div className=" flex justify-between gap-9  mt-3 w-[90%] mx-auto">
         <ContestList />
       </div>
+      <Footer/>
     </div>
   );
 };
