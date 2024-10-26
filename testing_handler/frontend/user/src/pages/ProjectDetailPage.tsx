@@ -10,7 +10,7 @@ import 'react-notion-x/src/styles.css';
 import 'prismjs/themes/prism-tomorrow.css';
 import 'katex/dist/katex.min.css';
 
-interface Project {
+export interface Project {
   id: string;
   username: string;
   testFileUrl: string;

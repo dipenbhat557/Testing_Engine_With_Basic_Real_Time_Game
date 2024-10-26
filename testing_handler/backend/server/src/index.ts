@@ -7,6 +7,8 @@ import path from "path";
 import cors from 'cors'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,6 +68,51 @@ interface Payload {
   envs: { [key: string]: string };
 }
 
+const authMiddleware = (req: Request, res: Response, next: Function):any => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader) return res.status(401).json({ error: "No token provided" });
+
+  const token = authHeader.split(" ")[1];
+
+  jwt.verify(token, process.env.JWT_SECRET!, (err: any, decoded: any) => {
+    if (err || !decoded) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    // req.user = decoded;
+    next();
+  });
+};
+
+app.post('/signin', async (req: Request, res: Response): Promise<any> => {
+  const { username, password } = req.body;
+
+  // const user = await prisma.user.findUnique({
+  //   where: { username },
+  // });
+
+  // if (!user || !bcrypt.compareSync(password, user.password)) {
+  //   return res.status(401).json({ error: "Invalid credentials" });
+  // }
+  
+  // if (!user.isAdmin) {
+  //   return res.status(403).json({ error: "Access denied" });
+  // }
+
+  // console.log("username is ",username ," and from server is ",process.env.USERNAME)
+  // console.log("password from server is ",process.env.PASSWORD)
+  // console.log("user id is ",process.env.USER_ID)
+
+  if(username != process.env.USER_ID || password != process.env.PASSWORD){
+    res.status(401).json({error: "Invalid credentials"})
+  }
+
+  // const token = jwt.sign({ userId: user.id, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({username:username}, process.env.JWT_SECRET!, {expiresIn: '1h'} )
+  console.log("token is ",token)
+  res.json({ token, message: "Sign-in successful" });
+});
+
 app.get('/notion-page/:pageId', async (req, res) => {
   if (!notion) {
     res.status(500).json({ error: 'Notion API is not initialized yet' });
@@ -84,6 +131,7 @@ app.get('/notion-page/:pageId', async (req, res) => {
 
 app.post(
   "/test/register",
+  authMiddleware,
   upload.fields([{
     name: 'testFile', maxCount: 1
   }, {
@@ -254,6 +302,34 @@ app.get("/tests/:testId", async (req: Request, res: Response):Promise<any> => {
   } catch (error) {
     console.error("Error fetching test details:", error);
     res.status(500).json({ error: "Failed to fetch test details" });
+  }
+});
+
+app.get("/test/results", async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    console.log("page is ",page, " page size is ",pageSize)
+
+    const skip = (page - 1) * pageSize;
+
+    const totalTests = await prisma.testResult.count();
+
+    const testResults = await prisma.testResult.findMany({
+      skip: skip,
+      take: pageSize,
+    });
+
+    res.json({
+      page,
+      pageSize,
+      totalTests,
+      totalPages: Math.ceil(totalTests / pageSize),
+      data: testResults,
+    });
+  } catch (error) {
+    console.error("Error fetching tests:", error);
+    res.status(500).json({ error: "Failed to fetch tests" });
   }
 });
 
